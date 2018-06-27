@@ -1,0 +1,11 @@
+multi_task.o: Multi_task.c
+multi_task.o: c:\Software\Keil\ARM\Inc\NXP\LPC17xx\lpc17xx.h
+multi_task.o: c:\Software\Keil\ARM\CMSIS\Include\core_cm3.h
+multi_task.o: c:\Software\Keil\ARM\ARMCC\bin\..\include\stdint.h
+multi_task.o: c:\Software\Keil\ARM\CMSIS\Include\core_cmInstr.h
+multi_task.o: c:\Software\Keil\ARM\CMSIS\Include\core_cmFunc.h
+multi_task.o: c:\Software\Keil\ARM\Inc\NXP\LPC17xx\system_LPC17xx.h
+multi_task.o: c:\Software\Keil\ARM\ARMCC\bin\..\include\stdio.h
+multi_task.o: c:\Software\Keil\ARM\ARMCC\bin\..\include\stdbool.h
+multi_task.o: c:\Software\Keil\ARM\RV31\INC\RTL.h
+multi_task.o: GLCD.h
