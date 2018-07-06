@@ -46,7 +46,7 @@ robot_t robot;
 
 /* Semaphore Implementation */
 typedef uint32_t sem_t;
-sem_t cond_1, cond_2;
+sem_t action_performed, display_refreshed;
 
 void init(sem_t *s, uint32_t count)
 {
@@ -95,11 +95,28 @@ __task void updateDisplay(void)
 	os_itv_set(10);
 	
 	while(1)
-	{	
-		// Read IMU data
-		
-		// Signal that IMU data has been read successfully
-		signal(&cond_1);
+	{
+		// Declare current row and column
+		uint32_t row, col;
+
+		// Wait until something has changed on the screen
+		wait(&action_performed);
+
+		GLCD_SetTextColor(Blue);
+		GLCD_SetBackColor(Blue);
+		GLCD_Clear(Blue);
+
+		for (row=min_row; row<max_row; row++)
+		{
+			for (col=min_col; col<max_col; col++)
+			{
+				// Print char value of array element at {row, col} on LCD Display
+				
+				GLCD_Bitmap(row,col,40,40, digger_bmp2);
+			}
+		}
+		// Signal that LCD Display has been redrawn	
+		signal(&display_refreshed);
 		os_tsk_pass();
 	}
 }
