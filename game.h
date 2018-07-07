@@ -9,10 +9,10 @@
 #define GOLD 10
 #define SILVER 5
 #define COPPER 1
-#define UP (1 << 26)
-#define DOWN (1 << 24)
-#define LEFT (1 << 25)
-#define RIGHT (1 << 23)
+#define LEFT (1 << 23)
+#define UP (1 << 24)
+#define RIGHT (1 << 25)
+#define DOWN (1 << 26)
 
 // Global Variables
 uint32_t min_row, min_col;
@@ -80,6 +80,80 @@ __task void mainTask(void)
 	os_tsk_create(buyFuel, 3);
 
 	os_tsk_delete_self();
+}
+
+__task void moveRobot(void)
+{
+	uint32_t cur_state = 0;
+	uint32_t prev_state = 0;
+
+	os_itv_set(10);
+
+	while(1)
+	{
+		pollJoystick();
+		pollPushbutton();
+
+		cur_state = robot.dir;
+
+		if (cur_state != prev_state)
+		{
+			switch(robot.dir)
+			{
+				case RIGHT:
+					if (robot.x_pos++ < MAX_SCREEN_LENGTH)
+					{
+						robot.x_pos++;
+					}
+					break;
+				case LEFT:
+					if (robot.x_pos-- >= SURFACE)
+					{
+						robot.x_pos--;
+					}
+					break;
+				case UP:
+					if(robot.is_flying)
+					{
+						if (robot.y_pos-- >= 0)
+						{
+							robot.y_pos--;
+						}
+					}
+					break;
+				case DOWN:
+					if (!robot.is_flying)
+					{
+						if (robot.y_pos++ <= max_col)
+						{
+							robot.y_pos++;
+						}
+					}
+					break;
+			}
+		}
+		prev_state = cur_state;
+
+		// Check if map boundaries need to be updated
+		if (robot.x_pos > max_row)
+		{
+				min_row += 3;
+				max_row += 3;
+		}
+		if (robot.x_pos < min_row)
+		{
+			min_row -= 3;
+			max_row -= 3;
+		}
+
+
+		// Wait until sensorFusion algorithm has been run
+		//wait(&cond_2);
+
+		// Output data to game
+		//printf("%f,%f,%f\n", sensor_fusion_getRoll(), -sensor_fusion_getYaw(), sensor_fusion_getPitch());
+		os_tsk_pass();
+	}
 }
 
 __task void buyFuel(void)
