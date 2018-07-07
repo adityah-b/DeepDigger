@@ -84,6 +84,9 @@ __task void mainTask(void)
 
 __task void moveRobot(void)
 {
+	uint32_t cur_state = 0;
+	uint32_t prev_state = 0;
+
 	os_itv_set(10);
 
 	while(1)
@@ -91,34 +94,57 @@ __task void moveRobot(void)
 		pollJoystick();
 		pollPushbutton();
 
-		switch(robot.dir)
-		{
-			case RIGHT:
-				robot.x_pos += 40;
-				break;
-			case LEFT:
-				robot.x_pos -= 40;
-				break;
-			case UP:
-				if(robot.is_flying)
-				{
-					robot.y_pos -= 40;
-				}
-				break;
-			case DOWN:
-				if (!robot.is_flying)
-				{
-					robot.y_pos += 40;
-				}
-				break;
-		}
+		cur_state = robot.dir;
 
-		if (robot.x_pos >= max_row)
+		if (cur_state != prev_state)
 		{
-			min_row += 5;
-			max_row += 5;
+			switch(robot.dir)
+			{
+				case RIGHT:
+					if (robot.x_pos++ < MAX_SCREEN_LENGTH)
+					{
+						robot.x_pos++;
+					}
+					break;
+				case LEFT:
+					if (robot.x_pos-- >= SURFACE)
+					{
+						robot.x_pos--;
+					}
+					break;
+				case UP:
+					if(robot.is_flying)
+					{
+						if (robot.y_pos-- >= 0)
+						{
+							robot.y_pos--;
+						}
+					}
+					break;
+				case DOWN:
+					if (!robot.is_flying)
+					{
+						if (robot.y_pos++ <= max_col)
+						{
+							robot.y_pos++;
+						}
+					}
+					break;
+			}
 		}
+		prev_state = cur_state;
 
+		// Check if map boundaries need to be updated
+		if (robot.x_pos > max_row)
+		{
+				min_row += 3;
+				max_row += 3;
+		}
+		if (robot.x_pos < min_row)
+		{
+			min_row -= 3;
+			max_row -= 3;
+		}
 
 
 		// Wait until sensorFusion algorithm has been run
