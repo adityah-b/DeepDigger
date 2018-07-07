@@ -9,10 +9,10 @@
 #define GOLD 10
 #define SILVER 5
 #define COPPER 1
-#define UP (1 << 26)
-#define DOWN (1 << 24)
-#define LEFT (1 << 25)
-#define RIGHT (1 << 23)
+#define LEFT (1 << 23)
+#define UP (1 << 24)
+#define RIGHT (1 << 25)
+#define DOWN (1 << 26)
 
 // Global Variables
 uint32_t min_row, min_col;
@@ -80,6 +80,54 @@ __task void mainTask(void)
 	os_tsk_create(buyFuel, 3);
 
 	os_tsk_delete_self();
+}
+
+__task void moveRobot(void)
+{
+	os_itv_set(10);
+
+	while(1)
+	{
+		pollJoystick();
+		pollPushbutton();
+
+		switch(robot.dir)
+		{
+			case RIGHT:
+				robot.x_pos += 40;
+				break;
+			case LEFT:
+				robot.x_pos -= 40;
+				break;
+			case UP:
+				if(robot.is_flying)
+				{
+					robot.y_pos -= 40;
+				}
+				break;
+			case DOWN:
+				if (!robot.is_flying)
+				{
+					robot.y_pos += 40;
+				}
+				break;
+		}
+
+		if (robot.x_pos >= max_row)
+		{
+			min_row += 5;
+			max_row += 5;
+		}
+
+
+
+		// Wait until sensorFusion algorithm has been run
+		//wait(&cond_2);
+
+		// Output data to game
+		//printf("%f,%f,%f\n", sensor_fusion_getRoll(), -sensor_fusion_getYaw(), sensor_fusion_getPitch());
+		os_tsk_pass();
+	}
 }
 
 __task void buyFuel(void)
