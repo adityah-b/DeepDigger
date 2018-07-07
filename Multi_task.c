@@ -85,15 +85,56 @@ __task void mainTask(void)
 	os_tsk_delete_self();
 }
 
+void loadBMP(int row, int col)
+{
+	unsigned char *output_bmp;
+	switch(map[row][col])
+	{
+		// E R D G S C P X F
+		case 'E':
+			output_bmp = (unsigned char *)E_bmp;
+			break;
+		case 'R':
+			output_bmp = (unsigned char *)R_bmp;
+			break;
+		case 'D':
+			output_bmp = (unsigned char *)D_bmp;
+			break;
+		case 'G':
+			output_bmp = (unsigned char *)G_bmp;
+			break;
+		case 'S':
+			output_bmp = (unsigned char *)S_bmp;
+			break;
+		case 'C':
+			output_bmp = (unsigned char *)C_bmp;
+			break;
+		case 'X_P':
+			output_bmp = (unsigned char *)X_P_bmp;
+			break;
+		case 'X_E':
+			output_bmp = (unsigned char *)X_E_bmp;
+			break;
+		case 'F':
+			output_bmp = (unsigned char *)F_bmp;
+			break;
+		default:
+			output_bmp = (unsigned char *)P_bmp;
+			break;
+	}
+
+	GLCD_Bitmap(row,col,40,40, output_bmp);
+}
+
 __task void updateDisplay(void)
 {
 	os_itv_set(10);
+	
+	// Declare current row and column
+	uint32_t row, col;
 
 	while(1)
 	{
-		// Declare current row and column
-		uint32_t row, col;
-
 		// Wait until something has changed on the screen
 		wait(&action_performed);
 
@@ -106,8 +147,7 @@ __task void updateDisplay(void)
 			for (col=min_col; col<max_col; col++)
 			{
 				// Print char value of array element at {row, col} on LCD Display
-				
-				GLCD_Bitmap(row,col,40,40, digger_bmp2);
+				output_bmp(row, col);
 			}
 		}
 		// Signal that LCD Display has been redrawn	
@@ -190,8 +230,8 @@ int main(void)
 	int i = 160, j = 120;
 	int count = 0;
 	// Initialize semaphores to 0
-	init(&cond_1, 0);
-	init(&cond_2, 0);
+	init(&action_performed, 1);
+	init(&display_refreshed, 0);
 
 	// Initialize peripherals
 	LED_setup();
