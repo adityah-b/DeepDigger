@@ -8,16 +8,110 @@
 #include "game.h"
 
 
+// Global Variables
+uint32_t min_row, min_col;
+uint32_t max_row, max_col;
+char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
+
+// Tasks
+__task void updateDisplay(void);
+__task void pollPushButton(void);
+__task void pollJoystick(void);
+__task void updateFuelStatus(void);
+__task void moveRobot(void);
+__task void buyFuel(void);
+
+/* Character Struct */
+typedef struct {
+	volatile uint32_t x_pos, y_pos;
+	
+	uint32_t num_gold, num_silver, num_copper;
+	uint32_t fuel_status;
+	uint32_t num_points;
+	
+	bool is_flying;
+	
+	// Robot Inputs
+	volatile uint32_t dir;
+	volatile uint32_t select_action;
+} robot_t;
+robot_t robot;
+/* Character Struct */
+
+
+/* Semaphore Implementation */
+typedef uint32_t sem_t;
+sem_t action_performed, display_refreshed;
+
+void init(sem_t *s, uint32_t count)
+{
+	*s = count;
+}
+
+void wait(sem_t *s)
+{
+	__disable_irq();
+	while(*s ==0)	{
+		__enable_irq();
+		__disable_irq();
+	}
+	(*s)--;
+	__enable_irq();
+}
+
+void signal(sem_t *s)
+{
+	__disable_irq();
+	(*s)++;
+	__enable_irq();
+}
+/* Semaphore Implementation */
+
+
+__task void mainTask(void)
+{
+	// Create tasks
+	os_tsk_create(updateDisplay, 1);
+	
+	os_tsk_create(pollPushButton, 2);
+	os_tsk_create(pollJoystick, 2);
+	
+	os_tsk_create(updateFuelStatus, 3);
+	os_tsk_create(moveRobot, 3);
+	
+	os_tsk_create(buyFuel, 4);
+
+	
+	os_tsk_delete_self();
+}
+
 __task void updateDisplay(void)
 {
 	os_itv_set(10);
 
 	while(1)
 	{
-		// Read IMU data
+		// Declare current row and column
+		uint32_t row, col;
 
-		// Signal that IMU data has been read successfully
-		signal(&cond_1);
+		// Wait until something has changed on the screen
+		wait(&action_performed);
+
+		GLCD_SetTextColor(Blue);
+		GLCD_SetBackColor(Blue);
+		GLCD_Clear(Blue);
+
+		for (row=min_row; row<max_row; row++)
+		{
+			for (col=min_col; col<max_col; col++)
+			{
+				// Print char value of array element at {row, col} on LCD Display
+				
+				GLCD_Bitmap(row,col,40,40, digger_bmp2);
+			}
+		}
+		// Signal that LCD Display has been redrawn	
+		signal(&display_refreshed);
 		os_tsk_pass();
 	}
 }
