@@ -21,6 +21,7 @@ uint32_t min_row, min_col;
 uint32_t max_row, max_col;
 uint32_t ms_ticks;
 char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
+bool game_over = false;
 
 /* Character Struct */
 typedef struct {
@@ -88,14 +89,14 @@ __task void mainTask(void)
 __task void moveRobot(void)
 {
 
-	// TODO: Implement points system
+	// TODO: Implement points system, implement obstacle detection system
 
 	uint32_t cur_state = 0;
 	uint32_t prev_state = 0;
 
 	os_itv_set(10);
 
-	while(1)
+	while(!game_over)
 	{
 		pollJoystick();
 		pollPushbutton();
@@ -169,7 +170,7 @@ __task void buyFuel(void)
 	uint32_t num_bars;
 	uint32_t cost;
 
-	while(1)
+	while(!game_over)
 	{
 		if (map[robot.x_pos][robot.y_pos] == 'F' && robot.select_action)
 		{
@@ -180,6 +181,7 @@ __task void buyFuel(void)
 		}
 		os_tsk_pass();
 	}
+	// NOTE: Experimental, not sure how to handle game_over case
 }
 
 __task void updateFuelStatus(void)
@@ -189,7 +191,7 @@ __task void updateFuelStatus(void)
 	uint32_t fuel_time_next = 0;
 	uint32_t fuel_consumption_rate = FUEL_TIME;
 
-	while(1)
+	while(!game_over)
 	{
 		// Perhaps add mutex to control which task (updateFuel or buyFuel) gets to
 		// update robot.fuel_status
@@ -202,14 +204,18 @@ __task void updateFuelStatus(void)
 			robot.fuel_status--;
 			fuel_time_next += fuel_consumption_rate;
 		}
+
+		setLED(robot.fuel_status);
+
 		// Add condition where game ends when robot.fuel_status <= 0
 		if (robot.fuel_status == 0)
 		{
-			// gameOver();
+			game_over = true;
 		}
-		setLED(robot.fuel_status);
 		os_tsk_pass();
 	}
+	// NOTE: Experimental, not yet sure how to handle game_over case
+	os_tsk_delete_self();
 	/* Put this in main()
 	SysTick_Config(SystemCoreClock/1000);
 	*/
