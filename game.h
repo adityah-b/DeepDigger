@@ -23,6 +23,7 @@ uint32_t max_row, max_col;
 uint32_t ms_ticks;
 bool gameOver = 0;
 char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
+bool game_over = false;
 
 /* Character Struct */
 typedef struct {

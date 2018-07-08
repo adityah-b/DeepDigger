@@ -1,4 +1,13 @@
+#include <lpc17xx.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <RTL.h>
+
 #include "game.h"
+#include "GLCD.h"
+#include "timer.h"
+
+//#include "game_bitmaps.h"
 
 /* Semaphores */
 void init(sem_t *s, uint32_t count)
@@ -41,15 +50,15 @@ __task void mainTask(void)
 
 __task void updateDisplay(void)
 {
-	os_itv_set(10);
-	
 	// Declare current row and column
 	uint32_t row, col;
+	
+	os_itv_set(10);
 
 	while(1)
 	{
 		// Wait until something has changed on the screen
-		wait(&action_performed);
+		//wait(&action_performed);
 
 		GLCD_SetTextColor(Blue);
 		GLCD_SetBackColor(Blue);
@@ -60,11 +69,11 @@ __task void updateDisplay(void)
 			for (col=min_col; col<max_col; col++)
 			{
 				// Print char value of array element at {row, col} on LCD Display
-				output_bmp(row, col);
+				loadBMP(row, col);
 			}
 		}
 		// Signal that LCD Display has been redrawn	
-		signal(&display_refreshed);
+		//signal(&display_refreshed);
 		os_tsk_pass();
 	}
 }
@@ -142,10 +151,10 @@ __task void moveRobot(void)
 
 __task void buyFuel(void)
 {
-	os_itv_set(10);
-
 	uint32_t num_bars;
 	uint32_t cost;
+	
+	os_itv_set(10);
 
 	while(1)
 	{
@@ -162,10 +171,10 @@ __task void buyFuel(void)
 
 __task void updateFuelStatus(void)
 {
-	os_itv_set(10);
-
 	uint32_t fuel_time_next = 0;
 	uint32_t fuel_consumption_rate = FUEL_TIME;
+	
+	os_itv_set(10);
 
 	while(1)
 	{
@@ -175,7 +184,7 @@ __task void updateFuelStatus(void)
 		// Lose 1 bar of fuel every 10s (5s if robot is flying)
 		fuel_consumption_rate = robot.is_flying ? 0.5*FUEL_TIME : FUEL_TIME;
 		// Decrement fuel tank by 1 per period
-		if (ms_ticks - fuel_time_next >= fuel_consumption_rate)
+		if (timer_read()/1E6 - fuel_time_next >= fuel_consumption_rate)
 		{
 			robot.fuel_status--;
 			fuel_time_next += fuel_consumption_rate;
@@ -197,7 +206,7 @@ __task void updateFuelStatus(void)
 /* Tasks */
 
 /* Functions */
-inline void pollJoystick(void)
+/*inline*/ void pollJoystick(void)
 {
 	// Value read from joystick register
 	uint32_t joystick_val;
@@ -215,7 +224,7 @@ inline void pollJoystick(void)
 	robot.select_action = joystick_val & button_mask ? false:true;
 }
 
-inline void pollPushbutton(void)
+/*inline*/ void pollPushbutton(void)
 {
 	uint32_t val = LPC_GPIO2 -> FIOPIN;
 	uint32_t mask = 1 << 10;
@@ -223,13 +232,18 @@ inline void pollPushbutton(void)
 	robot.is_flying = (~val & mask) ? true : false;
 }
 
-inline void setLED(uint32_t val)
+/*inline*/ void setLED(uint32_t val)
 {
 	/* Remember to transfer this code to main()
 	// Set Pins on GPIO1 and GPIO2 to output
 	LPC_GPIO1 -> FIODIR = 0xB0000000;
 	LPC_GPIO2 -> FIODIR = 0x0000007C;
 	*/
+	uint32_t num;
+	
+	uint32_t gpio_1_clr, gpio_2_clr, gpio_1_set, gpio_2_set;
+	uint32_t fioclr1, fioclr2, fioset1, fioset2;
+	
 	uint32_t lower_mask = (1 << 3) - 1;
 	uint32_t upper_mask = ((1<<8)- 1) & (~lower_mask);
 
@@ -238,29 +252,29 @@ inline void setLED(uint32_t val)
 		val = NUM_LEDS;
 	}
 
-	uint32_t num = (1 << val) - 1;
+	num = (1 << val) - 1;
 
 	// Clear LEDs corresponding to empty fuel bars
-	uint32_t gpio_1_clr = (~num) & lower_mask;
-	uint32_t gpio_2_clr = (~num) & upper_mask;
+	gpio_1_clr = (~num) & lower_mask;
+	gpio_2_clr = (~num) & upper_mask;
 
-	uint32_t fioclr1 = 0x0 | ((gpio_1_clr & 0x3)<<28) | ((gpio_1_clr & 0x4)<<29);
-	uint32_t fioclr2 = 0x0 | (gpio_2_clr>>1);
+	fioclr1 = 0x0 | ((gpio_1_clr & 0x3)<<28) | ((gpio_1_clr & 0x4)<<29);
+	fioclr2 = 0x0 | (gpio_2_clr>>1);
 	LPC_GPIO1 -> FIOCLR = fioclr1;
 	LPC_GPIO2 -> FIOCLR = fioclr2;
 
 	// Set LEDs corresponding to available fuel bars
-	uint32_t gpio_1_set = num & lower_mask;
-	uint32_t gpio_2_set = num & upper_mask;
+	gpio_1_set = num & lower_mask;
+	gpio_2_set = num & upper_mask;
 
-	uint32_t fioset1 = 0x0 | ((gpio_1_set & 0x3)<<28) | ((gpio_1_set & 0x4)<<29);
-	uint32_t fioset2 = 0x0 | (gpio_2_set>>1);
+	fioset1 = 0x0 | ((gpio_1_set & 0x3)<<28) | ((gpio_1_set & 0x4)<<29);
+	fioset2 = 0x0 | (gpio_2_set>>1);
 	LPC_GPIO1 -> FIOSET = fioset1;
 	LPC_GPIO2 -> FIOSET = fioset2;
 }
 
 
-void loadBMP(int row, int col)
+void loadBMP(uint32_t row, uint32_t col)
 {
 	unsigned char *output_bmp;
 	switch(map[row][col])
@@ -289,23 +303,23 @@ void loadBMP(int row, int col)
 		case 'F':
 			output_bmp = (unsigned char *)fuel_bmp;
 			break;
-		case 'X':
-			if (row <= SURFACE)
-			{
-				if (robot.dir == LEFT)
-					output_bmp = (unsigned char *)x_sky_left_bmp;
-				else
-					output_bmp = (unsigned char *)x_sky_right_bmp;
-			}
-			else
-			{
-				if (robot.dir == LEFT)
-					output_bmp = (unsigned char *)x_path_left_bmp;
-				else
-					output_bmp = (unsigned char *)x_path_right_bmp;
-			}
-			break;
-		default:
+// 		case 'X':
+// 			if (row <= SURFACE)
+// 			{
+// 				if (robot.dir == LEFT)
+// 					output_bmp = (unsigned char *)x_sky_left_bmp;
+// 				else
+// 					output_bmp = (unsigned char *)x_sky_right_bmp;
+// 			}
+// 			else
+// 			{
+// 				if (robot.dir == LEFT)
+// 					output_bmp = (unsigned char *)x_path_left_bmp;
+// 				else
+// 					output_bmp = (unsigned char *)x_path_right_bmp;
+// 			}
+// 			break;
+ 		default:
 			output_bmp = (unsigned char *)path_bmp;
 			break;
 	}
@@ -313,8 +327,77 @@ void loadBMP(int row, int col)
 	GLCD_Bitmap(row,col,40,40, output_bmp);
 }
 
-void SysTick_Handler(void)
+/*void SysTick_Handler(void)
 {
 	ms_ticks++;
-}
+}*/
 /* Functions */
+
+
+int main(void)
+{
+// 	unsigned char *direction, *button_pressed;
+// 	uint32_t val; 
+// 	uint32_t mask = 15 << 23;
+// 	
+// 	unsigned char *digger_bmp2;
+// 	int i = 160, j = 120;
+// 	int count = 0;
+// 	// Initialize semaphores to 0
+// 	init(&cond_1, 0);
+// 	init(&cond_2, 0);
+// 	
+	// Initialize peripherals
+	LED_setup();
+	GLCD_Init();
+	LPC_GPIO1 -> FIODIR = 0xB0000000;
+	LPC_GPIO2 -> FIODIR = 0x0000007C;
+	//SysTick_Config(SystemCoreClock/1000);
+	timer_setup();
+// 	digger_bmp2 = (unsigned char *)digger_bmp;
+// 	while (1)
+// 	{
+// 		val = LPC_GPIO1 -> FIOPIN;
+// 		switch(~val & mask)
+// 		{
+// 			case 1 << 23 :
+// 				//direction = "LEFT ";
+// 				j-=40;
+// 				break;
+// 			case 1 << 24 :
+// 				//direction = "UP  ";
+// 				i+=40;
+// 				break;
+// 			case 1 << 25 :
+// 				//direction = "RIGHT  ";
+// 				j+=40;
+// 				break;
+// 			case 1 << 26 :
+// 				//direction = "DOWN    ";
+// 				i-=40;
+// 				break;
+// 			default:
+// 				direction = "No Dir";
+// 		}
+// 	
+// 		if (i+40 >= 320) i = 0;
+  		GLCD_SetTextColor(Blue);
+		  GLCD_SetBackColor(Blue);
+		  GLCD_Clear(Blue);
+// 		while(count <= 1000)
+// 		{
+// 			count++;
+// 		}
+// 		count = 0;
+// 		GLCD_Bitmap(i,j,40,40, digger_bmp2);
+// //		i+=40;
+// 		while(count <= 10000000){ 
+// 			count++;
+// 		}
+// 		count = 0;
+// 	}
+	printf("Starting Program");
+	
+	// Initialize main task
+	os_sys_init(mainTask);
+}
