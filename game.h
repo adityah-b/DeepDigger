@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <RTL.h>
 
+#include "game_bitmaps.h"
+
 // Macros
 #define MAX_SCREEN_LENGTH 100
 #define MAX_SCREEN_WIDTH 100
@@ -15,7 +17,7 @@
 #define DOWN (1 << 26)
 #define SURFACE 2
 #define NUM_LEDS 8
-#define FUEL_TIME 10000
+#define FUEL_TIME 10
 
 // Global Variables
 uint32_t min_row, min_col;
@@ -23,7 +25,6 @@ uint32_t max_row, max_col;
 uint32_t ms_ticks;
 bool gameOver = 0;
 char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
-bool game_over = false;
 
 /* Character Struct */
 typedef struct {
@@ -50,10 +51,10 @@ void signal(sem_t *s);
 /* Semaphore */
 
 /* Functions */
-inline void pollJoystick(void);
-inline void pollPushbutton(void);
-inline void setLED(uint32_t val);
-void SysTick_Handler(void);
+/*inline*/ void pollJoystick(void);
+/*inline*/ void pollPushbutton(void);
+/*inline*/ void setLED(uint32_t val);
+void loadBMP(uint32_t row, uint32_t col);
 /* Functions */
 
 /* Tasks */
