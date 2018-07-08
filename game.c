@@ -1,5 +1,6 @@
 #include <lpc17xx.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <RTL.h>
 
@@ -327,6 +328,42 @@ void loadBMP(uint32_t row, uint32_t col)
 	GLCD_Bitmap(row,col,40,40, output_bmp);
 }
 
+void initMap()
+{
+    uint32_t row, col;
+    for (row = 0; row < MAX_SCREEN_LENGTH; row++)
+    {
+        for (col = 0; row < MAX_SCREEN_WIDTH; col++)
+        {
+            uint32_t rand_val = rand()%100;
+            if (row <= SURFACE)
+            {
+                map[row][col] = 'S';
+            }
+            else if (rand_val < 20)
+            {
+                map[row][col] = 'R';
+            }
+            else if (rand_val >= 20 && rand_val < 40)
+            {
+                map[row][col] = 'C';
+            }
+            else if (rand_val >= 40 && rand_val < 80)
+            {
+                map[row][col] = 'D';
+            }
+            else if (rand_val >= 80 && rand_val < 94)
+            {
+                map[row][col] = 'E';
+            }
+            else
+            {
+                map[row][col] = 'G';
+            }
+        }
+    }
+}
+
 /*void SysTick_Handler(void)
 {
 	ms_ticks++;
@@ -347,6 +384,9 @@ int main(void)
 // 	init(&cond_1, 0);
 // 	init(&cond_2, 0);
 // 	
+    srand(time(NULL));
+    initMap();
+
 	// Initialize peripherals
 	LED_setup();
 	GLCD_Init();
