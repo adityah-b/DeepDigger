@@ -13,6 +13,7 @@
 #define UP (1 << 24)
 #define RIGHT (1 << 25)
 #define DOWN (1 << 26)
+#define SURFACE 2
 
 // Global Variables
 uint32_t min_row, min_col;

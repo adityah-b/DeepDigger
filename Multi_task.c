@@ -93,7 +93,7 @@ void loadBMP(int row, int col)
 		// E R D G S C P X F
 		// Dirt, gold, emerald, copper, sky, rock, path,fuel
 		// TODO: digger in black path, digger in sky,
-		case 'E':
+		case 'S':
 			output_bmp = (unsigned char *)sky_bmp;
 			break;
 		case 'R':
@@ -105,20 +105,30 @@ void loadBMP(int row, int col)
 		case 'G':
 			output_bmp = (unsigned char *)gold_bmp;
 			break;
-		case 'S':
+		case 'E':
 			output_bmp = (unsigned char *)emerald_bmp;
 			break;
 		case 'C':
 			output_bmp = (unsigned char *)copper_bmp;
 			break;
-		case 'X_P':
-			output_bmp = (unsigned char *)x_path_bmp;
-			break;
-		case 'X_E':
-			output_bmp = (unsigned char *)x_sky_bmp;
-			break;
 		case 'F':
 			output_bmp = (unsigned char *)fuel_bmp;
+			break;
+		case 'X':
+			if (row <= SURFACE)
+			{
+				if (robot.dir == LEFT)
+					output_bmp = (unsigned char *)x_sky_left_bmp;
+				else
+					output_bmp = (unsigned char *)x_sky_right_bmp;
+			}
+			else
+			{
+				if (robot.dir == LEFT)
+					output_bmp = (unsigned char *)x_path_left_bmp;
+				else
+					output_bmp = (unsigned char *)x_path_right_bmp;
+			}
 			break;
 		default:
 			output_bmp = (unsigned char *)path_bmp;
