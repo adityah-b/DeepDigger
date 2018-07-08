@@ -91,35 +91,37 @@ void loadBMP(int row, int col)
 	switch(map[row][col])
 	{
 		// E R D G S C P X F
+		// Dirt, gold, emerald, copper, sky, rock, path,fuel
+		// TODO: digger in black path, digger in sky,
 		case 'E':
-			output_bmp = (unsigned char *)E_bmp;
+			output_bmp = (unsigned char *)sky_bmp;
 			break;
 		case 'R':
-			output_bmp = (unsigned char *)R_bmp;
+			output_bmp = (unsigned char *)rock_bmp;
 			break;
 		case 'D':
-			output_bmp = (unsigned char *)D_bmp;
+			output_bmp = (unsigned char *)dirt_bmp;
 			break;
 		case 'G':
-			output_bmp = (unsigned char *)G_bmp;
+			output_bmp = (unsigned char *)gold_bmp;
 			break;
 		case 'S':
-			output_bmp = (unsigned char *)S_bmp;
+			output_bmp = (unsigned char *)emerald_bmp;
 			break;
 		case 'C':
-			output_bmp = (unsigned char *)C_bmp;
+			output_bmp = (unsigned char *)copper_bmp;
 			break;
 		case 'X_P':
-			output_bmp = (unsigned char *)X_P_bmp;
+			output_bmp = (unsigned char *)x_path_bmp;
 			break;
 		case 'X_E':
-			output_bmp = (unsigned char *)X_E_bmp;
+			output_bmp = (unsigned char *)x_sky_bmp;
 			break;
 		case 'F':
-			output_bmp = (unsigned char *)F_bmp;
+			output_bmp = (unsigned char *)fuel_bmp;
 			break;
 		default:
-			output_bmp = (unsigned char *)P_bmp;
+			output_bmp = (unsigned char *)path_bmp;
 			break;
 	}
 
