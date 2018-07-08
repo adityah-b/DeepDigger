@@ -108,13 +108,13 @@ __task void moveRobot(void)
 			switch(robot.dir)
 			{
 				case RIGHT:
-					if (robot.x_pos++ < MAX_SCREEN_LENGTH)
+					if (robot.x_pos+1 < MAX_SCREEN_LENGTH)
 					{
 						robot.x_pos++;
 					}
 					break;
 				case LEFT:
-					if (robot.x_pos-- >= SURFACE)
+					if (robot.x_pos-1 >= SURFACE)
 					{
 						robot.x_pos--;
 					}
