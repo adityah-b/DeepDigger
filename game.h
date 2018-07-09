@@ -6,22 +6,25 @@
 #include "game_bitmaps.h"
 
 // Macros
-#define MAX_SCREEN_LENGTH 50
-#define MAX_SCREEN_WIDTH 50
+#define MAX_SCREEN_LENGTH 20
+#define MAX_SCREEN_WIDTH 20
 #define GOLD 10
 #define SILVER 5
 #define COPPER 1
+
 #define LEFT (1 << 23)
 #define UP (1 << 24)
 #define RIGHT (1 << 25)
 #define DOWN (1 << 26)
+
 #define SURFACE 2
 #define NUM_LEDS 8
 #define FUEL_TIME 10
 
 // Global Variables
-uint32_t min_row, min_col;
-uint32_t max_row, max_col;
+uint32_t min_row = 0, min_col = 0;
+uint32_t max_row = 16, max_col = 12;
+uint32_t fuel_x, fuel_y;
 uint32_t ms_ticks;
 bool gameOver = 0;
 char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
@@ -51,11 +54,11 @@ void signal(sem_t *s);
 /* Semaphore */
 
 /* Functions */
-/*inline*/ void pollJoystick(void);
-/*inline*/ void pollPushbutton(void);
-/*inline*/ void setLED(uint32_t val);
-void initMap(void);
+void pollJoystick(void);
+void pollPushbutton(void);
+void setLED(uint32_t val);
 void loadBMP(uint32_t row, uint32_t col);
+void initMap(void);
 /* Functions */
 
 /* Tasks */

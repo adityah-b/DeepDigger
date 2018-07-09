@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <RTL.h>
-#include <time.h>
-
+#include "uart.h"
+#include <stdint.h>
 #include "game.h"
 #include "GLCD.h"
 #include "timer.h"
+
 
 //#include "game_bitmaps.h"
 
@@ -20,7 +21,7 @@ void init(sem_t *s, uint32_t count)
 void wait(sem_t *s)
 {
 	__disable_irq();
-	while(*s ==0)	{
+	while(*s == 0)	{
 		__enable_irq();
 		__disable_irq();
 	}
@@ -34,6 +35,9 @@ void signal(sem_t *s)
 	(*s)++;
 	__enable_irq();
 }
+
+sem_t action_performed, display_refreshed;
+sem_t mutt;
 /* Semaphores */
 
 /* Tasks */
@@ -42,8 +46,8 @@ __task void mainTask(void)
 	// Create tasks
 	os_tsk_create(updateDisplay, 1);
 
-	os_tsk_create(updateFuelStatus, 2);
 	os_tsk_create(moveRobot, 2);
+	os_tsk_create(updateFuelStatus, 2);
 
 	os_tsk_create(buyFuel, 3);
 
@@ -54,100 +58,157 @@ __task void updateDisplay(void)
 {
 	// Declare current row and column
 	uint32_t row, col;
-	
+	//uint32_t count = 0;
 	os_itv_set(10);
 
 	while(1)
 	{
 		// Wait until something has changed on the screen
 		//wait(&action_performed);
+		//printf("Entered updateDisplay\n");
+		//while (mutt == 0);
+		//printf("Mutex value in updateDisplay: %d\n", mutt);
+		
+		//GLCD_SetTextColor(Blue);
+		//GLCD_SetBackColor(Blue);
+		//GLCD_Clear(Blue);
 
-		GLCD_SetTextColor(Blue);
-		GLCD_SetBackColor(Blue);
-		GLCD_Clear(Blue);
-
+		printf("min_row: %d, max_row: %d\n", min_row, max_row);
 		for (row=min_row; row<max_row; row++)
 		{
 			for (col=min_col; col<max_col; col++)
 			{
 				// Print char value of array element at {row, col} on LCD Display
+				printf("Row: %d, Col: %d\n", row, col);
 				loadBMP(row, col);
+				//while(count <= 1000000) count++;
+				//if (count > 1000000) count = 0;
 			}
 		}
 		// Signal that LCD Display has been redrawn	
 		//signal(&display_refreshed);
+		mutt--;
+		//printf("Mutex value at end of updateDisplay: %d\n", mutt);
 		os_tsk_pass();
+		os_itv_wait();
 	}
 }
 
 __task void moveRobot(void)
 {
 
-	// TODO: Implement points system
+	// TODO: Implement points system, implement map update, implement rock boundary conditions, implement is_flying state condition
 
 	uint32_t cur_state = 0;
 	uint32_t prev_state = 0;
-
-	os_itv_set(10);
+	unsigned char* direction;
+	os_itv_set(50);
 
 	while(1)
 	{
+		// wait(&display_refreshed);
+		//printf("Entered moveRobot\n");
+		//while (mutt == 1);
+		//printf("Mutex value in moveRobot: %d\n", mutt);
+		int32_t x_pos_next=0, y_pos_next=0;
 		pollJoystick();
-		pollPushbutton();
-
+		printf("isFlying: %d\n", robot.is_flying);
 		cur_state = robot.dir;
 
 		if (cur_state != prev_state)
 		{
 			switch(robot.dir)
 			{
-				case RIGHT:
-					if (robot.x_pos+1 < MAX_SCREEN_LENGTH)
+				case DOWN:
+					if (!robot.is_flying)
 					{
-						robot.x_pos++;
-					}
-					break;
-				case LEFT:
-					if (robot.x_pos-1 >= SURFACE)
-					{
-						robot.x_pos--;
+						if (robot.x_pos+1 < MAX_SCREEN_LENGTH)
+						{
+							map[robot.x_pos][robot.y_pos] = robot.x_pos == SURFACE ? 'S' : 'P';
+							x_pos_next = 1;
+							direction = "DOWN";
+						}
 					}
 					break;
 				case UP:
 					if(robot.is_flying)
 					{
-						if (robot.y_pos-1 >= 0)
+						if (robot.x_pos-1 >= SURFACE)
 						{
-							robot.y_pos--;
+							map[robot.x_pos][robot.y_pos] = 'P';
+							x_pos_next = -1;
+							direction = "UP";
 						}
 					}
 					break;
-				case DOWN:
-					if (!robot.is_flying)
+				case LEFT:
+					if (robot.y_pos-1 >= 0)
 					{
-						if (robot.y_pos+1 <= max_col)
-						{
-							robot.y_pos++;
-						}
+						map[robot.x_pos][robot.y_pos] = robot.x_pos == SURFACE ? 'S' : 'P';
+						y_pos_next = -1;
+						direction = "LEFT";
+					}
+					break;
+				case RIGHT:
+					if (robot.y_pos+1 <= max_col)
+					{
+						map[robot.x_pos][robot.y_pos] = robot.x_pos == SURFACE ? 'S' : 'P';
+						y_pos_next = 1;
+						direction = "RIGHT";
 					}
 					break;
 			}
+			
+			if (robot.x_pos == fuel_x && robot.y_pos == fuel_y)
+				map[robot.x_pos][robot.y_pos] = 'F';
+			
+			robot.x_pos += x_pos_next;
+			robot.y_pos += y_pos_next;
+			
+			if (robot.is_flying && map[robot.x_pos][robot.y_pos] != 'P')
+			{
+				if (map[robot.x_pos][robot.y_pos] == 'S' || map[robot.x_pos][robot.y_pos] == 'F')
+				{
+					map[robot.x_pos][robot.y_pos] = 'X';
+				}
+				else
+				{
+					robot.x_pos -= x_pos_next;
+					robot.y_pos -= y_pos_next;
+				}
+			}
+			else if (map[robot.x_pos][robot.y_pos] != 'R')
+			{
+				map[robot.x_pos][robot.y_pos] = 'X';
+			}
+			else
+			{
+				robot.x_pos -= x_pos_next;
+				robot.y_pos -= y_pos_next;
+			}
 		}
+		//printf("DIRECTION: %s, robot.dir: %d, pushbutton: %d\n", direction, robot.dir, robot.is_flying);
 		prev_state = cur_state;
 
 		// Check if map boundaries need to be updated
-		if (robot.x_pos > max_row)
+		if (robot.x_pos >= max_row && max_row+3 <MAX_SCREEN_LENGTH)
 		{
 			min_row += 3;
 			max_row += 3;
 		}
-		if (robot.x_pos < min_row)
+		if (robot.x_pos <= min_row && min_row-3 >= SURFACE)
 		{
 			min_row -= 3;
 			max_row -= 3;
 		}
-
+		
+		//signal(&action_performed);
+		
+		mutt++;
+		//printf("RobotX: %d, RobotY: %d\n", robot.x_pos, robot.y_pos);
+		printf("MAP: %c, JoyButt: %d\n", map[robot.x_pos][robot.y_pos], robot.select_action);
 		os_tsk_pass();
+		os_itv_wait();
 	}
 }
 
@@ -156,11 +217,11 @@ __task void buyFuel(void)
 	uint32_t num_bars;
 	uint32_t cost;
 	
-	os_itv_set(10);
+	os_itv_set(200);
 
 	while(1)
 	{
-		if (map[robot.x_pos][robot.y_pos] == 'F' && robot.select_action)
+		if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
 		{
 			num_bars = NUM_LEDS - robot.fuel_status;
 			cost = 2*num_bars;
@@ -168,50 +229,55 @@ __task void buyFuel(void)
 			robot.num_points -= cost;
 		}
 		os_tsk_pass();
+		os_itv_wait();
 	}
 }
 
 __task void updateFuelStatus(void)
 {
+	uint32_t fuel_time_cur = 0;
 	uint32_t fuel_time_next = 0;
 	uint32_t fuel_consumption_rate = FUEL_TIME;
 	
-	os_itv_set(10);
+	os_itv_set(200);
 
 	while(1)
 	{
+		//printf("ENTERED FUEL UPDATE\n");
 		// Perhaps add mutex to control which task (updateFuel or buyFuel) gets to
 		// update robot.fuel_status
 
 		// Lose 1 bar of fuel every 10s (5s if robot is flying)
 		fuel_consumption_rate = robot.is_flying ? 0.5*FUEL_TIME : FUEL_TIME;
 		// Decrement fuel tank by 1 per period
-		if (timer_read()/1E6 - fuel_time_next >= fuel_consumption_rate)
+		fuel_time_cur = timer_read()/1E6;
+		//printf("fuel_time_cur: %d\n", fuel_time_cur);
+		if (fuel_time_cur - fuel_time_next >= fuel_consumption_rate)
 		{
+			printf("Entered 10s condition, robot_fuel_status: %d\n", robot.fuel_status);
 			robot.fuel_status--;
 			fuel_time_next += fuel_consumption_rate;
 		}
 		// Add condition where game ends when robot.fuel_status <= 0
-		if (robot.fuel_status == 0)
+		if (robot.fuel_status <= 0)
 		{
 			gameOver = true;
 			// gameOver();
 		}
 		setLED(robot.fuel_status);
 		os_tsk_pass();
+		os_itv_wait();
 	}
-	/* Put this in main()
-	SysTick_Config(SystemCoreClock/1000);
-	*/
-
 }
 /* Tasks */
 
 /* Functions */
-/*inline*/ void pollJoystick(void)
+void pollJoystick(void)
 {
 	// Value read from joystick register
-	uint32_t joystick_val;
+	volatile uint32_t joystick_val;
+	uint32_t joystick_button;
+	
 	// Bits that indicate direction of joystick
 	uint32_t direction_mask = 15 << 23;
 	// Bit indicates if joystick button pressed
@@ -223,32 +289,64 @@ __task void updateFuelStatus(void)
 	// robot.dir will take values of either UP, DOWN, LEFT, RIGHT, or a random value
 	robot.dir = (~joystick_val & direction_mask);
 	// Joystick button bit is inverted
-	robot.select_action = joystick_val & button_mask ? false:true;
+	robot.select_action = (~joystick_val) & button_mask ? true:false;
 }
 
-/*inline*/ void pollPushbutton(void)
+
+
+
+void configPushbutton(void)
 {
+	LPC_PINCON -> PINSEL4 &= ~(3 <<20);
+	LPC_GPIO2 -> FIODIR &= ~(1 << 10);
+	LPC_GPIOINT -> IO2IntEnF |= (1 << 10);
+	NVIC_EnableIRQ(EINT3_IRQn);
+	/*
 	uint32_t val = LPC_GPIO2 -> FIOPIN;
 	uint32_t mask = 1 << 10;
 
-	robot.is_flying = (~val & mask) ? true : false;
+	robot.is_flying = (~val & mask) ? true : false;*/
 }
 
-/*inline*/ void setLED(uint32_t val)
+void EINT3_IRQHandler(void)
 {
-	/* Remember to transfer this code to main()
-	// Set Pins on GPIO1 and GPIO2 to output
-	LPC_GPIO1 -> FIODIR = 0xB0000000;
-	LPC_GPIO2 -> FIODIR = 0x0000007C;
-	*/
-	uint32_t num;
-	
-	uint32_t gpio_1_clr, gpio_2_clr, gpio_1_set, gpio_2_set;
-	uint32_t fioclr1, fioclr2, fioset1, fioset2;
-	
+	robot.is_flying = !robot.is_flying;
+	printf("Pushbutton ISR Running\n");
+	LPC_GPIOINT -> IO2IntClr |= (1 <<10);
+}
+
+void setLights(uint32_t num)
+{
 	uint32_t lower_mask = (1 << 3) - 1;
 	uint32_t upper_mask = ((1<<8)- 1) & (~lower_mask);
+	
+	uint32_t gpio_1_set = num & lower_mask;
+	uint32_t gpio_2_set = num & upper_mask;
+	
+	uint32_t fioset1 = 0x0 | ((gpio_1_set & 0x3)<<28) | ((gpio_1_set & 0x4)<<29);
+	uint32_t fioset2 = 0x0 | (gpio_2_set>>1);
+	LPC_GPIO1 -> FIOSET = fioset1;
+	LPC_GPIO2 -> FIOSET = fioset2;
+}
 
+void clearLights(uint32_t num)
+{
+	uint32_t lower_mask = (1 << 3) - 1;
+	uint32_t upper_mask = ((1<<8)- 1) & (~lower_mask);
+	
+	uint32_t gpio_1_set = num & lower_mask;
+	uint32_t gpio_2_set = num & upper_mask;
+	
+	uint32_t fioset1 = 0x0 | ((gpio_1_set & 0x3)<<28) | ((gpio_1_set & 0x4)<<29);
+	uint32_t fioset2 = 0x0 | (gpio_2_set>>1);
+	LPC_GPIO1 -> FIOCLR = fioset1;
+	LPC_GPIO2 -> FIOCLR = fioset2;
+}
+void setLED(uint32_t val)
+{
+	uint32_t num;
+	
+	//printf("ENTERED SET_LED\n");
 	if (val > NUM_LEDS)
 	{
 		val = NUM_LEDS;
@@ -256,23 +354,8 @@ __task void updateFuelStatus(void)
 
 	num = (1 << val) - 1;
 
-	// Clear LEDs corresponding to empty fuel bars
-	gpio_1_clr = (~num) & lower_mask;
-	gpio_2_clr = (~num) & upper_mask;
-
-	fioclr1 = 0x0 | ((gpio_1_clr & 0x3)<<28) | ((gpio_1_clr & 0x4)<<29);
-	fioclr2 = 0x0 | (gpio_2_clr>>1);
-	LPC_GPIO1 -> FIOCLR = fioclr1;
-	LPC_GPIO2 -> FIOCLR = fioclr2;
-
-	// Set LEDs corresponding to available fuel bars
-	gpio_1_set = num & lower_mask;
-	gpio_2_set = num & upper_mask;
-
-	fioset1 = 0x0 | ((gpio_1_set & 0x3)<<28) | ((gpio_1_set & 0x4)<<29);
-	fioset2 = 0x0 | (gpio_2_set>>1);
-	LPC_GPIO1 -> FIOSET = fioset1;
-	LPC_GPIO2 -> FIOSET = fioset2;
+	clearLights(255);
+	setLights(num);
 }
 
 
@@ -303,9 +386,11 @@ void loadBMP(uint32_t row, uint32_t col)
 			output_bmp = (unsigned char *)copper_bmp;
 			break;
 		case 'F':
+			fuel_x = row;
+			fuel_y = col;
 			output_bmp = (unsigned char *)fuel_bmp;
 			break;
-// 		case 'X':
+ 		case 'X':
 // 			if (row <= SURFACE)
 // 			{
 // 				if (robot.dir == LEFT)
@@ -320,23 +405,25 @@ void loadBMP(uint32_t row, uint32_t col)
 // 				else
 // 					output_bmp = (unsigned char *)x_path_right_bmp;
 // 			}
-// 			break;
+			output_bmp = (unsigned char *)digger_bmp;
+ 			break;
  		default:
 			output_bmp = (unsigned char *)path_bmp;
 			break;
 	}
 
-	GLCD_Bitmap(row,col,40,40, output_bmp);
+	GLCD_Bitmap(row*20,col*20,20,20, output_bmp);
 }
 
-void initMap()
+void initMap(void)
 {
     uint32_t row, col;
     for (row = 0; row < MAX_SCREEN_LENGTH; row++)
     {
-        for (col = 0; row < MAX_SCREEN_WIDTH; col++)
+        for (col = 0; col < MAX_SCREEN_WIDTH; col++)
         {
             uint32_t rand_val = rand()%100;
+						//printf("Row: %d, Col: %d\n", row, col);
             if (row <= SURFACE)
             {
                 map[row][col] = 'S';
@@ -361,6 +448,7 @@ void initMap()
             {
                 map[row][col] = 'G';
             }
+						//printf("Row: %d, Col: %d, Val: %c\n", row, col, map[row][col]);
         }
     }
 }
@@ -374,71 +462,33 @@ void initMap()
 
 int main(void)
 {
-// 	unsigned char *direction, *button_pressed;
-// 	uint32_t val; 
-// 	uint32_t mask = 15 << 23;
-// 	
-// 	unsigned char *digger_bmp2;
-// 	int i = 160, j = 120;
-// 	int count = 0;
-// 	// Initialize semaphores to 0
-// 	init(&cond_1, 0);
-// 	init(&cond_2, 0);
-// 	
-    srand(time(NULL));
-    initMap();
-
-	// Initialize peripherals
-	LED_setup();
-	GLCD_Init();
 	LPC_GPIO1 -> FIODIR = 0xB0000000;
 	LPC_GPIO2 -> FIODIR = 0x0000007C;
-	//SysTick_Config(SystemCoreClock/1000);
-	timer_setup();
-// 	digger_bmp2 = (unsigned char *)digger_bmp;
-// 	while (1)
-// 	{
-// 		val = LPC_GPIO1 -> FIOPIN;
-// 		switch(~val & mask)
-// 		{
-// 			case 1 << 23 :
-// 				//direction = "LEFT ";
-// 				j-=40;
-// 				break;
-// 			case 1 << 24 :
-// 				//direction = "UP  ";
-// 				i+=40;
-// 				break;
-// 			case 1 << 25 :
-// 				//direction = "RIGHT  ";
-// 				j+=40;
-// 				break;
-// 			case 1 << 26 :
-// 				//direction = "DOWN    ";
-// 				i-=40;
-// 				break;
-// 			default:
-// 				direction = "No Dir";
-// 		}
-// 	
-// 		if (i+40 >= 320) i = 0;
-  		GLCD_SetTextColor(Blue);
-		  GLCD_SetBackColor(Blue);
-		  GLCD_Clear(Blue);
-// 		while(count <= 1000)
-// 		{
-// 			count++;
-// 		}
-// 		count = 0;
-// 		GLCD_Bitmap(i,j,40,40, digger_bmp2);
-// //		i+=40;
-// 		while(count <= 10000000){ 
-// 			count++;
-// 		}
-// 		count = 0;
-// 	}
-	printf("Starting Program");
+	// Initialize semaphores to 0
+ 	//init(&action_performed, 1);
+ 	//init(&display_refreshed, 1);
+	init(&mutt, 0);
 	
+	// Initialize peripherals
+	LED_setup();
+	timer_setup();
+	GLCD_Init();
+	GLCD_Clear(White);
+	GLCD_SetBackColor(Blue);
+	GLCD_SetTextColor(White);
+	configPushbutton();
+	robot.x_pos = 2;
+	robot.y_pos = 5;
+	printf("Starting Program\n");
+	printf("Mutex value: %d\n", mutt);
+	srand(timer_read());
+	initMap();
+	setLED(8);
+	setLED(3);
+	map[robot.x_pos][robot.y_pos] = 'X';
+	robot.fuel_status = 8;
+	map[SURFACE][0] = 'F';
+
 	// Initialize main task
 	os_sys_init(mainTask);
 }
