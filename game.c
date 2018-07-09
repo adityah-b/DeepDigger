@@ -79,7 +79,7 @@ __task void updateDisplay(void)
 			for (col=min_col; col<max_col; col++)
 			{
 				// Print char value of array element at {row, col} on LCD Display
-				printf("Row: %d, Col: %d\n", row, col);
+				//printf("Row: %d, Col: %d\n", row, col);
 				loadBMP(row, col);
 				//while(count <= 1000000) count++;
 				//if (count > 1000000) count = 0;
@@ -416,21 +416,21 @@ void loadBMP(uint32_t row, uint32_t col)
 			output_bmp = (unsigned char *)fuel_bmp;
 			break;
  		case 'X':
-// 			if (row <= SURFACE)
-// 			{
-// 				if (robot.dir == LEFT)
-// 					output_bmp = (unsigned char *)x_sky_left_bmp;
-// 				else
-// 					output_bmp = (unsigned char *)x_sky_right_bmp;
-// 			}
-// 			else
-// 			{
-// 				if (robot.dir == LEFT)
-// 					output_bmp = (unsigned char *)x_path_left_bmp;
-// 				else
-// 					output_bmp = (unsigned char *)x_path_right_bmp;
-// 			}
-			output_bmp = (unsigned char *)digger_bmp;
+			if (row <= SURFACE)
+			{
+				if (robot.dir == LEFT)
+					output_bmp = (unsigned char *)x_sky_left_bmp;
+				else
+					output_bmp = (unsigned char *)x_sky_right_bmp;
+			}
+			else
+			{
+				if (robot.dir == LEFT)
+					output_bmp = (unsigned char *)x_path_left_bmp;
+				else
+					output_bmp = (unsigned char *)x_path_right_bmp;
+			}
+			//output_bmp = (unsigned char *)digger_bmp;
  			break;
  		default:
 			output_bmp = (unsigned char *)path_bmp;
