@@ -61,7 +61,7 @@ __task void updateDisplay(void)
 	//uint32_t count = 0;
 	os_itv_set(10);
 
-	while(1)
+	while(!game_over)
 	{
 		// Wait until something has changed on the screen
 		//wait(&action_performed);
@@ -92,6 +92,11 @@ __task void updateDisplay(void)
 		os_tsk_pass();
 		os_itv_wait();
 	}
+    
+    if (game_over)
+    {
+        endGameDisplay();
+    }
 }
 
 __task void moveRobot(void)
@@ -104,7 +109,7 @@ __task void moveRobot(void)
 	unsigned char* direction;
 	os_itv_set(50);
 
-	while(1)
+	while(!game_over)
 	{
 		// wait(&display_refreshed);
 		//printf("Entered moveRobot\n");
@@ -161,7 +166,7 @@ __task void moveRobot(void)
 			
 			if (robot.x_pos == fuel_x && robot.y_pos == fuel_y)
 				map[robot.x_pos][robot.y_pos] = 'F';
-			
+
 			robot.x_pos += x_pos_next;
 			robot.y_pos += y_pos_next;
 			
@@ -179,6 +184,21 @@ __task void moveRobot(void)
 			}
 			else if (map[robot.x_pos][robot.y_pos] != 'R')
 			{
+                if (map[robot.x_pos][robot.y_pos] = 'G')
+                {
+                    robot.num_gold++;
+                    robot.num_points+=10;
+                }
+                else if (map[robot.x_pos][robot.y_pos] = 'E')
+                {
+                    robot.num_emerald++;
+                    robot.num_points+=5;
+                }
+                else if (map[robot.x_pos][robot.y_pos] = 'C')
+                {
+                    robot.num_copper++;
+                    robot.num_points+=1;
+                }
 				map[robot.x_pos][robot.y_pos] = 'X';
 			}
 			else
@@ -186,6 +206,12 @@ __task void moveRobot(void)
 				robot.x_pos -= x_pos_next;
 				robot.y_pos -= y_pos_next;
 			}
+
+            if (robot.num_points > END_GAME_THRESHOLD)
+            {
+                game_over = true;
+                robot.game_won = true;
+            }
 		}
 		//printf("DIRECTION: %s, robot.dir: %d, pushbutton: %d\n", direction, robot.dir, robot.is_flying);
 		prev_state = cur_state;
@@ -221,7 +247,7 @@ __task void buyFuel(void)
 	
 	os_itv_set(200);
 
-	while(1)
+	while(!game_over)
 	{
 		if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
 		{
@@ -243,7 +269,7 @@ __task void updateFuelStatus(void)
 	
 	os_itv_set(200);
 
-	while(1)
+	while(!game_over)
 	{
 		//printf("ENTERED FUEL UPDATE\n");
 		// Perhaps add mutex to control which task (updateFuel or buyFuel) gets to
@@ -263,8 +289,8 @@ __task void updateFuelStatus(void)
 		// Add condition where game ends when robot.fuel_status <= 0
 		if (robot.fuel_status <= 0)
 		{
-			gameOver = true;
-			// gameOver();
+			game_over = true;
+            robot.game_won = false;
 		}
 		setLED(robot.fuel_status);
 		os_tsk_pass();
@@ -293,9 +319,6 @@ void pollJoystick(void)
 	// Joystick button bit is inverted
 	robot.select_action = (~joystick_val) & button_mask ? true:false;
 }
-
-
-
 
 void configPushbutton(void)
 {
@@ -453,6 +476,17 @@ void initMap(void)
 						//printf("Row: %d, Col: %d, Val: %c\n", row, col, map[row][col]);
         }
     }
+}
+
+void endGameDisplay(void)
+{
+    unsigned char *message;
+    GLCD_Clear(White);
+	GLCD_SetBackColor(Blue);
+	GLCD_SetTextColor(White);
+
+    message = robot.game_won ? "CONGRATULATIONS! YOU WON!!" : "OH NO YOU RAN OUT OF FUEL. BETTER LUCK NEXT TIME!";
+    GLCD_DisplayString (5, 5, 1, message)    
 }
 
 /*void SysTick_Handler(void)
