@@ -184,17 +184,17 @@ __task void moveRobot(void)
 			}
 			else if (map[robot.x_pos][robot.y_pos] != 'R')
 			{
-                if (map[robot.x_pos][robot.y_pos] = 'G')
+                if (map[robot.x_pos][robot.y_pos] == 'G')
                 {
                     robot.num_gold++;
                     robot.num_points+=10;
                 }
-                else if (map[robot.x_pos][robot.y_pos] = 'E')
+                else if (map[robot.x_pos][robot.y_pos] == 'E')
                 {
                     robot.num_emerald++;
                     robot.num_points+=5;
                 }
-                else if (map[robot.x_pos][robot.y_pos] = 'C')
+                else if (map[robot.x_pos][robot.y_pos] == 'C')
                 {
                     robot.num_copper++;
                     robot.num_points+=1;
