@@ -195,11 +195,13 @@ __task void moveRobot(void)
 		{
 			min_row += 3;
 			max_row += 3;
+            num_slides++;
 		}
 		if (robot.x_pos <= min_row && min_row-3 >= SURFACE)
 		{
 			min_row -= 3;
 			max_row -= 3;
+            num_slides--;
 		}
 		
 		//signal(&action_performed);
@@ -412,7 +414,7 @@ void loadBMP(uint32_t row, uint32_t col)
 			break;
 	}
 
-	GLCD_Bitmap(row*20,col*20,20,20, output_bmp);
+	GLCD_Bitmap(row*20 - num_slides*3*20,col*20,20,20, output_bmp);
 }
 
 void initMap(void)

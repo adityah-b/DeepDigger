@@ -26,6 +26,7 @@ uint32_t min_row = 0, min_col = 0;
 uint32_t max_row = 16, max_col = 12;
 uint32_t fuel_x, fuel_y;
 uint32_t ms_ticks;
+uint32_t num_slides = 0;
 bool gameOver = 0;
 char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
 
