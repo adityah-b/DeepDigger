@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <RTL.h>
+#include <time.h>
 
 #include "game.h"
 #include "GLCD.h"

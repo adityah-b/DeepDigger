@@ -54,7 +54,7 @@ void signal(sem_t *s);
 /*inline*/ void pollJoystick(void);
 /*inline*/ void pollPushbutton(void);
 /*inline*/ void setLED(uint32_t val);
-void initMap(uint32_t num_rows, uint32_t num_cols);
+void initMap(void);
 void loadBMP(uint32_t row, uint32_t col);
 /* Functions */
 
