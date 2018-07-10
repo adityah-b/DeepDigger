@@ -82,6 +82,7 @@ __task void moveRobot(void)
 	uint32_t cur_state = 0;
 	uint32_t prev_state = 0;
 	unsigned char* direction;
+	uint32_t *joystick_inputs;
 	//os_itv_set(10);
 	//printf("MUTEX MOVE ROBOT: %d, %d, %d\n", screen_busy[0], screen_busy[1], screen_busy[2]);
 
@@ -97,15 +98,22 @@ __task void moveRobot(void)
 		//printf("Entered moveRobot\n");
 		//while (mutt == 1);
 		//printf("Mutex value in moveRobot: %d\n", mutt);
-		pollJoystick();
-		cur_state = robot.dir;
+		joystick_inputs = pollJoystick();
+		robot.select_action = joystick_inputs[1];
+
+		cur_state = joystick_inputs[0];
+
+		if (cur_state == RIGHT || cur_state == LEFT)
+		{
+			robot.dir = cur_state;
+		}
 
 		if (cur_state != prev_state)
 		{
 			robot.x_pos_prev = robot.x_pos;
 			robot.y_pos_prev = robot.y_pos;
 			
-			switch(robot.dir)
+			switch(cur_state)
 			{
 				case DOWN:
 					if (!robot.is_flying)
@@ -314,11 +322,12 @@ __task void updateFuelStatus(void)
 /* Tasks */
 
 /* Functions */
-void pollJoystick(void)
+uint32_t* pollJoystick(void)
 {
 	// Value read from joystick register
 	volatile uint32_t joystick_val;
-	uint32_t joystick_button;
+	uint32_t joystick_button, 
+	uint32_t joystick_inputs[2];
 	
 	// Bits that indicate direction of joystick
 	uint32_t direction_mask = 15 << 23;
@@ -329,9 +338,11 @@ void pollJoystick(void)
 	joystick_val = LPC_GPIO1 -> FIOPIN;
 
 	// robot.dir will take values of either UP, DOWN, LEFT, RIGHT, or a random value
-	robot.dir = (~joystick_val & direction_mask);
+	joystick_inputs[0] = (~joystick_val & direction_mask);
 	// Joystick button bit is inverted
-	robot.select_action = (~joystick_val) & button_mask ? true:false;
+	joystick_inputs[1] = (~joystick_val) & button_mask ? true:false;
+
+	return joystick_inputs;
 }
 
 void configPushbutton(void)
