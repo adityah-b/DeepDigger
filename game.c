@@ -15,7 +15,6 @@ __task void mainTask(void)
 	// Initialize Semaphores
 	os_sem_init(&display_refreshed, 0);
 	os_sem_init(&action_performed, 1);
-	os_mut_init(&
 	
 	// Create tasks
 	os_tsk_create(updateDisplay, 1);
@@ -221,7 +220,7 @@ __task void moveRobot(void)
 		{
 			min_row -= NUM_SCROLL;
 			max_row -= NUM_SCROLL;
-      num_slides--;
+            num_slides--;
 			map_scrolled = true;
 		}
 		
@@ -246,6 +245,7 @@ __task void buyFuel(void)
 
 	while(!game_over)
 	{
+        os_mut_wait(&fuel_lock, 0xffff);
 		if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
 		{
 			num_bars = NUM_LEDS - robot.fuel_status;
@@ -256,6 +256,8 @@ __task void buyFuel(void)
 				robot.num_points -= cost;
 			}
 		}
+        
+        os_mut_release(&fuel_lock);
 		//os_tsk_pass();
 		//os_itv_wait();
 	}
@@ -265,13 +267,23 @@ __task void buyFuel(void)
 __task void updateFuelStatus(void)
 {
 	uint32_t fuel_time_cur = 0;
+    uint32_t fuel_time_prev = 0;
 	uint32_t fuel_time_next = 0;
+    uint32_t blocked_time = 0;
 	uint32_t fuel_consumption_rate = FUEL_TIME;
 	
+    os_mut_init(&fuel_lock);
 	//os_itv_set(200);
 
 	while(!game_over)
 	{
+        fuel_time_prev = timer_read()/1E6;
+
+        os_mut_wait(&fuel_lock, 0xffff);
+
+        fuel_time_cur = timer_read()/1E6;
+        blocked_time += (fuel_time_cur - fuel_time_prev);
+        fuel_time_cur -= blocked_time;
 		//printf("ENTERED FUEL UPDATE\n");
 		// Perhaps add mutex to control which task (updateFuel or buyFuel) gets to
 		// update robot.fuel_status
@@ -279,7 +291,6 @@ __task void updateFuelStatus(void)
 		// Lose 1 bar of fuel every 10s (5s if robot is flying)
 		fuel_consumption_rate = robot.is_flying ? 0.5*FUEL_TIME : FUEL_TIME;
 		// Decrement fuel tank by 1 per period
-		fuel_time_cur = timer_read()/1E6;
 		//printf("fuel_time_cur: %d\n", fuel_time_cur);
 		if (fuel_time_cur - fuel_time_next >= fuel_consumption_rate)
 		{
@@ -294,6 +305,7 @@ __task void updateFuelStatus(void)
             robot.game_won = false;
 		}
 		setLED(robot.fuel_status);
+        os_mut_release(&fuel_lock);
 		os_tsk_pass();
 		//os_itv_wait();
 	}
