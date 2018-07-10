@@ -6,8 +6,8 @@
 #include "game_bitmaps.h"
 
 // Macros
-#define MAX_SCREEN_LENGTH 20
-#define MAX_SCREEN_WIDTH 20
+#define MAX_SCREEN_LENGTH 50
+#define MAX_SCREEN_WIDTH 50
 #define GOLD 10
 #define SILVER 5
 #define COPPER 1
@@ -21,6 +21,7 @@
 #define NUM_LEDS 8
 #define FUEL_TIME 10
 #define END_GAME_THRESHOLD 70
+#define NUM_SCROLL 8
 
 // Global Variables
 uint32_t min_row = 0, min_col = 0;
@@ -30,9 +31,13 @@ uint32_t ms_ticks;
 uint32_t num_slides = 0;
 bool game_over = 0;
 char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
+bool map_scrolled = false;
+OS_SEM display_refreshed, action_performed;
+OS_MUT fuel_lock;
 
 /* Character Struct */
 typedef struct {
+	uint32_t x_pos_prev, y_pos_prev;
 	uint32_t x_pos, y_pos;
 
 	uint32_t num_gold, num_emerald, num_copper;
@@ -63,6 +68,7 @@ void setLED(uint32_t val);
 void loadBMP(uint32_t row, uint32_t col);
 void initMap(void);
 void endGameDisplay(void);
+void printMap(void);
 /* Functions */
 
 /* Tasks */
