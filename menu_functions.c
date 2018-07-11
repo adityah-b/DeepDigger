@@ -45,9 +45,18 @@ void showGeneralMenu(void)
 	GLCD_DisplayString (6, 2, 1, message);
 	printf("%s\n", message);
 	
-	sprintf(message, "Fuel Status: %d", robot.fuel_status);
-	GLCD_DisplayString (8, 2, 1, message);
+	sprintf(message, "Fuel Status: %d/8", robot.fuel_status);
+	GLCD_DisplayString (7, 2, 1, message);
 	printf("%s\n", message);
+	
+	if (robot.is_flying)
+	{
+		GLCD_DisplayString (8, 2, 1, "Flight: Enabled");
+	}
+	else
+	{
+		GLCD_DisplayString (8, 2, 1, "Flight: Disabled");
+	}
 }
 
 void showBuyFuelMenu(uint32_t fuel_centre_option)
@@ -82,7 +91,7 @@ void showBuyFuelMenu(uint32_t fuel_centre_option)
 	printf("%s\n", message);
 	GLCD_DisplayString (5, 2, 1, message);
 	
-	sprintf(message, "Fuel Status: %d", robot.fuel_status);
+	sprintf(message, "Fuel Status: %d/8", robot.fuel_status);
 	GLCD_DisplayString (7, 2, 1, message);
 	printf("%s\n", message);
 }
