@@ -30,12 +30,21 @@ __task void mainTask(void)
 
 __task void updateDisplay(void)
 {
+	volatile uint32_t *joystick_inputs;
 	// Declare current row and column
 	//uint32_t count = 0;
 	//os_itv_set(10);
 	//printf("UPDATE DISPLAY INIT MUTEX VAL: %d, %d, %d\n", screen_busy[0], screen_busy[1], screen_busy[2]);
 	//os_mut_init(&screen_busy);
 	//printf("UPDATE DISPLAY NEXT MUTEX VAL: %d, %d, %d\n", screen_busy[0], screen_busy[1], screen_busy[2]);
+	showInstructionMenu();
+	joystick_inputs = pollJoystick();
+	while(joystick_inputs[1] == 0)
+	{
+		printf("Instruction menu. Press joystick to continue\n");
+		joystick_inputs = pollJoystick();
+	}
+	os_dly_wait(200);
 	printMap();
 
 	while(!game_over)
@@ -43,7 +52,7 @@ __task void updateDisplay(void)
 		os_sem_wait(&action_performed, 0xffff);
 		//os_mut_wait(&screen_busy, 0xffff);
 		//printf("MUTEX AFTER WAIT: %d, %d, %d\n", screen_busy[0], screen_busy[1], screen_busy[2]);
-		//printf("Entered Update Display\n");
+		printf("Entered Update Display\n");
 		// Wait until something has changed on the screen
 		//signal(&display_refreshed);
 		//printf("Entered updateDisplay\n");
@@ -51,30 +60,46 @@ __task void updateDisplay(void)
 		//printf("Mutex value in updateDisplay: %d\n", mutt);
 		
 		//printf("min_row: %d, max_row: %d\n", min_row, max_row);
-		if(map_scrolled)
-		{	
-			printf("Min Row: %d, Max Row: %d, Num Slides: %d", min_row, max_row, num_slides);
-			printMap();
-			map_scrolled = false;
-		}
-		else
+		
+		if (menu_requested && !(robot.x_pos == fuel_x && robot.y_pos == fuel_y))
 		{
-			loadBMP(robot.x_pos_prev, robot.y_pos_prev);
-			loadBMP(robot.x_pos, robot.y_pos);
+			showGeneralMenu();
+			os_dly_wait(1000);
+			printMap();
+			menu_requested = false;
+			os_sem_send(&display_refreshed);
 		}
-		// Signal that LCD Display has been redrawn	
-		//signal(&display_refreshed);
+		else if (!menu_requested)
+		{
+			printf("menu requested: %d\n", menu_requested);
+			if(map_scrolled)
+			{	
+				printf("Min Row: %d, Max Row: %d, Num Slides: %d", min_row, max_row, num_slides);
+				printMap();
+				map_scrolled = false;
+			}
+			else
+			{
+				loadBMP(robot.x_pos_prev, robot.y_pos_prev);
+				loadBMP(robot.x_pos, robot.y_pos);
+			}
+			// Signal that LCD Display has been redrawn	
+			//signal(&display_refreshed);
+			
+			//os_mut_release(&screen_busy);
+			//printf("MUTEX AFTER RELEASE: %d, %d, %d\n", screen_busy[0], screen_busy[1], screen_busy[2]);
+			
+			//os_itv_wait();
+		}
+		
 		os_sem_send(&display_refreshed);
-		//os_mut_release(&screen_busy);
-		//printf("MUTEX AFTER RELEASE: %d, %d, %d\n", screen_busy[0], screen_busy[1], screen_busy[2]);
 		os_tsk_pass();
-		//os_itv_wait();
 	}
     
-    if (game_over)
-    {
-        endGameDisplay();
-    }
+	if (game_over)
+	{
+			endGameDisplay();
+	}
 	while(1);
 }
 
@@ -99,12 +124,16 @@ __task void moveRobot(void)
 		//signal(&action_performed);
 		//wait(&display_refreshed);
 		os_sem_wait(&display_refreshed, 0xffff);
-		//printf("Entered moveRobot\n");
+		printf("Entered moveRobot\n");
 		//while (mutt == 1);
 		//printf("Mutex value in moveRobot: %d\n", mutt);
 		joystick_inputs = pollJoystick();
 		robot.select_action = joystick_inputs[1];
 
+		if (robot.select_action)
+		{
+			menu_requested = true;
+		}
 		cur_state = joystick_inputs[0];
 
 		if (cur_state == RIGHT || cur_state == LEFT)
@@ -122,7 +151,7 @@ __task void moveRobot(void)
 				case DOWN:
 					if (!robot.is_flying)
 					{
-						if (robot.x_pos+1 < MAX_SCREEN_WIDTH)
+						if (robot.x_pos+1 < MAX_MAP_WIDTH)
 						{
 							map[robot.x_pos][robot.y_pos] = robot.x_pos == SURFACE ? 'S' : 'P';
 							x_pos_next = 1;
@@ -221,7 +250,7 @@ __task void moveRobot(void)
 		prev_state = cur_state;
 
 		// Check if map boundaries need to be updated
-		if (robot.x_pos + 1 >= max_row && max_row + NUM_SCROLL <= MAX_SCREEN_WIDTH)
+		if (robot.x_pos + 1 >= max_row && max_row + NUM_SCROLL <= MAX_MAP_WIDTH)
 		{
 			min_row += NUM_SCROLL;
 			max_row += NUM_SCROLL;
@@ -258,16 +287,31 @@ __task void buyFuel(void)
 	while(!game_over)
 	{
 		os_sem_wait(&needs_refill, 0xffff);
-		//if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
-		//{
-			num_bars = NUM_LEDS - robot.fuel_status;
-			cost = 2*num_bars;
-			if (robot.num_points >= cost)
-			{
-				robot.fuel_status = NUM_LEDS;
-				robot.num_points -= cost;
-			}
-		//}
+		printf("Entered buyFuel\n");
+
+		num_bars = NUM_LEDS - robot.fuel_status;
+		cost = 2*num_bars;
+		
+		if (cost == 0)
+		{
+			showBuyFuelMenu(2);
+		}
+		else if (robot.num_points >= cost && menu_requested)
+		{
+			robot.fuel_status = NUM_LEDS;
+			robot.num_points -= cost;
+			
+			showBuyFuelMenu(1);
+			setLED(robot.fuel_status);
+		}
+		else if (menu_requested)
+		{
+			showBuyFuelMenu(0);
+		}
+		os_dly_wait(1000);
+		printMap();
+		menu_requested = false;
+		
 		os_sem_send(&fuel_refilled);
 	}
 	os_tsk_delete_self();
@@ -286,6 +330,7 @@ __task void updateFuelStatus(void)
 
 	while(!game_over)
 	{
+		printf("Entered updateFuelStatus\n");
 		os_sem_wait(&fuel_refilled, 0xffff);
         //fuel_time_prev = timer_read()/1E6;
 
@@ -477,7 +522,7 @@ void loadBMP(uint32_t row, uint32_t col)
 void initMap(void)
 {
     uint32_t row, col;
-    for (row = 0; row < MAX_SCREEN_WIDTH; row++)
+    for (row = 0; row < MAX_MAP_WIDTH; row++)
     {
         for (col = 0; col < MAX_SCREEN_LENGTH; col++)
         {
@@ -514,17 +559,42 @@ void initMap(void)
 
 void endGameDisplay(void)
 {
-    unsigned char *message;
+    unsigned char message[50];
     GLCD_Clear(White);
     GLCD_SetBackColor(White);
     GLCD_SetTextColor(Blue);
 
-    message = robot.game_won ? "YOU WON!!" : "YOU LOST!!";
-    GLCD_DisplayString (5, 5, 1, message);   
+		if (robot.game_won)
+		{
+			GLCD_DisplayString (2, 2, 1, "CONGRATULATIONS!!");
+			GLCD_DisplayString (3, 5, 1, "YOU WON!!");
+		}
+		else
+		{
+			GLCD_DisplayString (2, 2, 1, "OH NO YOU RAN OUT");
+			GLCD_DisplayString (3, 5, 1, "OF FUEL!!");
+		}
+
+		sprintf(message, "Total Points: %d", robot.num_points);
+		printf("Message: %s\n", message);
+		GLCD_DisplayString (5, 2, 1, message);
+
+		sprintf(message, "GOLD: %d", robot.num_gold);
+		GLCD_DisplayString (6, 2, 1, message);
+		printf("Message: %s\n", message);
+
+		sprintf(message, "EMERALD: %d", robot.num_emerald);
+		GLCD_DisplayString (7, 2, 1, message);
+		printf("Message: %s\n", message);
+
+		sprintf(message, "COPPER: %d", robot.num_copper);
+		GLCD_DisplayString (8, 2, 1, message);
+		printf("Message: %s\n", message);
 }
 void printMap(void)
 {
 	uint32_t row, col;
+	unsigned char *output_bmp;
 	for (row=min_row; row<max_row; row++)
 	{
 		for (col=min_col; col<max_col; col++)
@@ -534,6 +604,110 @@ void printMap(void)
 			loadBMP(row, col);
 		}
 	}
+}
+
+void printBlackOverlay(void)
+{
+	uint32_t row, col;
+	unsigned char *output_bmp;
+	
+	for (row = MENU_X_PADDING; row < MAX_SCREEN_WIDTH - MENU_X_PADDING; row++)
+	{
+		for (col = MENU_Y_PADDING; col < MAX_SCREEN_LENGTH - MENU_Y_PADDING; col++)
+		{
+			output_bmp = (unsigned char *)path_bmp;
+			GLCD_Bitmap(row*20,col*20,20,20, output_bmp);
+		}
+	}
+}
+
+void showGeneralMenu(void)
+{	
+	unsigned char message[50];
+	
+	printBlackOverlay();
+	
+	GLCD_SetTextColor(White);
+	GLCD_SetBackColor(Black);
+
+	GLCD_DisplayString (1, 4, 1, "Current Stats");
+	printf("Current Stats\n");
+	
+	sprintf(message, "Total Points: %d", robot.num_points);
+	printf("Message: %s\n", message);
+	GLCD_DisplayString (3, 2, 1, message);
+	
+	sprintf(message, "GOLD: %d", robot.num_gold);
+	GLCD_DisplayString (4, 2, 1, message);
+	printf("Message: %s\n", message);
+	
+	sprintf(message, "EMERALD: %d", robot.num_emerald);
+	GLCD_DisplayString (5, 2, 1, message);
+	printf("Message: %s\n", message);
+	
+	sprintf(message, "COPPER: %d", robot.num_copper);
+	GLCD_DisplayString (6, 2, 1, message);
+	printf("Message: %s\n", message);
+	
+	sprintf(message, "Fuel Status: %d", robot.fuel_status);
+	GLCD_DisplayString (8, 2, 1, message);
+	printf("Message: %s\n", message);
+}
+
+void showBuyFuelMenu(uint32_t money_available)
+{
+	unsigned char message[50];
+	
+	printBlackOverlay();
+	GLCD_SetTextColor(White);
+	GLCD_SetBackColor(Black);
+	
+	if (money_available == 1)
+	{
+		GLCD_DisplayString (2, 4, 1, "Successfully");
+		GLCD_DisplayString (3, 4, 1, "Refuelled!");
+		printf("Successfully Refuelled!\n");
+	}
+	else if (money_available == 2)
+	{
+		GLCD_DisplayString (2, 2, 1, "You are already");
+		GLCD_DisplayString (3, 4, 1, "at max fuel!");
+		printf("You are at max fuel!\n");
+	}
+	else
+	{
+		GLCD_DisplayString (2, 2, 1, "Need more points");
+		GLCD_DisplayString (3, 5, 1, "to refuel!");
+		printf("Not enough money to refuel!\n");
+	}
+	
+	sprintf(message, "Total Points: %d", robot.num_points);
+	printf("Message: %s\n", message);
+	GLCD_DisplayString (5, 2, 1, message);
+	
+	sprintf(message, "Fuel Status: %d", robot.fuel_status);
+	GLCD_DisplayString (7, 2, 1, message);
+	printf("Message: %s\n", message);
+}
+
+void showInstructionMenu(void)
+{
+	GLCD_Clear(White);
+	GLCD_SetBackColor(White);
+	GLCD_SetTextColor(Blue);
+	GLCD_DisplayString (1, 4, 1, "DEEP DIGGER!");
+	
+	GLCD_DisplayString (10, 2, 0, "Objective:");
+	GLCD_DisplayString (12, 2, 0, "Collect as many minerals as possible, before you run");
+	GLCD_DisplayString (14, 2, 0, "out of fuel. Gold=10, Emerald=5, Copper=1 points.");
+	
+	GLCD_DisplayString (17, 2, 0, "Game Instructions:");
+	GLCD_DisplayString (19, 2, 0, "-Use joystick to control movement");
+	GLCD_DisplayString (21, 2, 0, "-Push joystick to open menu");
+	GLCD_DisplayString (23, 2, 0, "-To enable flying, press pushbutton");
+	GLCD_DisplayString (25, 2, 0, "-To refuel, get to RED block and push joystick");
+	
+	GLCD_DisplayString (28, 2, 0, "Press joystick to continue");
 }
 /* Functions */
 

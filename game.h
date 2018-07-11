@@ -7,7 +7,8 @@
 
 // Macros
 #define MAX_SCREEN_LENGTH 12
-#define MAX_SCREEN_WIDTH 60
+#define MAX_SCREEN_WIDTH 16
+#define MAX_MAP_WIDTH 60
 #define GOLD 10
 #define SILVER 5
 #define COPPER 1
@@ -19,19 +20,22 @@
 
 #define SURFACE 2
 #define NUM_LEDS 8
-#define FUEL_TIME 20
-#define END_GAME_THRESHOLD 300
+#define FUEL_TIME 10
+#define END_GAME_THRESHOLD 100
 #define NUM_SCROLL 4
+#define MENU_X_PADDING 1
+#define MENU_Y_PADDING 1
 
 // Global Variables
 uint32_t min_row = 0, min_col = 0;
-uint32_t max_row = 16, max_col = 12;
+uint32_t max_row = MAX_SCREEN_WIDTH, max_col = MAX_SCREEN_LENGTH;
 uint32_t fuel_x, fuel_y;
 uint32_t ms_ticks;
 uint32_t num_slides = 0;
 bool game_over = 0;
-char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
+char map[MAX_MAP_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
 bool map_scrolled = false;
+bool menu_requested = false;
 OS_SEM display_refreshed, action_performed, needs_refill, fuel_refilled;
 
 /* Character Struct */
@@ -68,6 +72,11 @@ void loadBMP(uint32_t row, uint32_t col);
 void initMap(void);
 void endGameDisplay(void);
 void printMap(void);
+void printBlackOverlay(void);
+void showGeneralMenu(void);
+void showBuyFuelMenu(uint32_t money_available);
+void showInstructionMenu(void);
+
 /* Functions */
 
 /* Tasks */
