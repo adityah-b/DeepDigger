@@ -12,15 +12,15 @@
 #define SILVER 5
 #define COPPER 1
 
-#define LEFT (1 << 23)
+#define RIGHT (1 << 23)
 #define UP (1 << 24)
-#define RIGHT (1 << 25)
+#define LEFT (1 << 25)
 #define DOWN (1 << 26)
 
 #define SURFACE 2
 #define NUM_LEDS 8
-#define FUEL_TIME 10
-#define END_GAME_THRESHOLD 70
+#define FUEL_TIME 20
+#define END_GAME_THRESHOLD 300
 #define NUM_SCROLL 8
 
 // Global Variables
@@ -32,8 +32,7 @@ uint32_t num_slides = 0;
 bool game_over = 0;
 char map[MAX_SCREEN_WIDTH][MAX_SCREEN_LENGTH]; // Temporary
 bool map_scrolled = false;
-OS_SEM display_refreshed, action_performed;
-OS_MUT fuel_lock;
+OS_SEM display_refreshed, action_performed, needs_refill, fuel_refilled;
 
 /* Character Struct */
 typedef struct {
@@ -62,7 +61,7 @@ void signal(sem_t *s);
 /* Semaphore */
 
 /* Functions */
-void pollJoystick(void);
+uint32_t* pollJoystick(void);
 void pollPushbutton(void);
 void setLED(uint32_t val);
 void loadBMP(uint32_t row, uint32_t col);
