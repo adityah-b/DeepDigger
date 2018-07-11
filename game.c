@@ -122,7 +122,7 @@ __task void moveRobot(void)
 				case DOWN:
 					if (!robot.is_flying)
 					{
-						if (robot.x_pos+1 < MAX_SCREEN_LENGTH)
+						if (robot.x_pos+1 < MAX_SCREEN_WIDTH)
 						{
 							map[robot.x_pos][robot.y_pos] = robot.x_pos == SURFACE ? 'S' : 'P';
 							x_pos_next = 1;
@@ -221,7 +221,7 @@ __task void moveRobot(void)
 		prev_state = cur_state;
 
 		// Check if map boundaries need to be updated
-		if (robot.x_pos + 1 >= max_row && max_row + NUM_SCROLL < MAX_SCREEN_LENGTH)
+		if (robot.x_pos + 1 >= max_row && max_row + NUM_SCROLL <= MAX_SCREEN_WIDTH)
 		{
 			min_row += NUM_SCROLL;
 			max_row += NUM_SCROLL;
@@ -313,15 +313,17 @@ __task void updateFuelStatus(void)
 		if (robot.fuel_status <= 0)
 		{
 			game_over = true;
-            robot.game_won = false;
+			robot.game_won = false;
 		}
 		setLED(robot.fuel_status);
 		if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
 		{
 			os_sem_send(&needs_refill);
 		}
-        //os_mut_release(&fuel_lock);
-		os_sem_send(&fuel_refilled);
+		else
+		{
+			os_sem_send(&fuel_refilled);
+		}
 		os_tsk_pass();
 		//os_itv_wait();
 	}
@@ -475,9 +477,9 @@ void loadBMP(uint32_t row, uint32_t col)
 void initMap(void)
 {
     uint32_t row, col;
-    for (row = 0; row < MAX_SCREEN_LENGTH; row++)
+    for (row = 0; row < MAX_SCREEN_WIDTH; row++)
     {
-        for (col = 0; col < MAX_SCREEN_WIDTH; col++)
+        for (col = 0; col < MAX_SCREEN_LENGTH; col++)
         {
             uint32_t rand_val = rand()%100;
 						//printf("Row: %d, Col: %d\n", row, col);
@@ -524,14 +526,14 @@ void printMap(void)
 {
 	uint32_t row, col;
 	for (row=min_row; row<max_row; row++)
+	{
+		for (col=min_col; col<max_col; col++)
 		{
-			for (col=min_col; col<max_col; col++)
-			{
-				// Print char value of array element at {row, col} on LCD Display
-				//printf("Row: %d, Col: %d\n", row, col);
-				loadBMP(row, col);
-			}
+			// Print char value of array element at {row, col} on LCD Display
+			//printf("Row: %d, Col: %d\n", row, col);
+			loadBMP(row, col);
 		}
+	}
 }
 /* Functions */
 
@@ -540,10 +542,6 @@ int main(void)
 {
 	LPC_GPIO1 -> FIODIR = 0xB0000000;
 	LPC_GPIO2 -> FIODIR = 0x0000007C;
-	// Initialize semaphores to 0
- 	//init(&action_performed, 1);
- 	//init(&display_refreshed, 0);
-	//init(&mutt, 0);
 	
 	//os_mut_init(&screen_busy);
 	// Initialize peripherals
@@ -570,4 +568,4 @@ int main(void)
 	os_sys_init(mainTask);
 }
 
-// TODO: Semaphores, Points and flying display, select menu(perhaps), toggle directional movement, improve end game display, gravity?
+// TODO: Semaphores, Points and flying display, select menu(perhaps), improve end game display, gravity?

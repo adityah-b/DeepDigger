@@ -6,8 +6,8 @@
 #include "game_bitmaps.h"
 
 // Macros
-#define MAX_SCREEN_LENGTH 50
-#define MAX_SCREEN_WIDTH 50
+#define MAX_SCREEN_LENGTH 12
+#define MAX_SCREEN_WIDTH 60
 #define GOLD 10
 #define SILVER 5
 #define COPPER 1
@@ -21,7 +21,7 @@
 #define NUM_LEDS 8
 #define FUEL_TIME 20
 #define END_GAME_THRESHOLD 300
-#define NUM_SCROLL 8
+#define NUM_SCROLL 4
 
 // Global Variables
 uint32_t min_row = 0, min_col = 0;
