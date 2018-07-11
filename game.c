@@ -15,6 +15,9 @@ __task void mainTask(void)
 	// Initialize Semaphores
 	os_sem_init(&display_refreshed, 0);
 	os_sem_init(&action_performed, 1);
+	os_sem_init(&fuel_refilled, 1);
+	os_sem_init(&needs_refill, 0);
+	
 	
 	// Create tasks
 	os_tsk_create(updateDisplay, 1);
@@ -50,6 +53,7 @@ __task void updateDisplay(void)
 		//printf("min_row: %d, max_row: %d\n", min_row, max_row);
 		if(map_scrolled)
 		{	
+			printf("Min Row: %d, Max Row: %d, Num Slides: %d", min_row, max_row, num_slides);
 			printMap();
 			map_scrolled = false;
 		}
@@ -224,11 +228,11 @@ __task void moveRobot(void)
 			num_slides++;
 			map_scrolled = true;
 		}
-		if (robot.x_pos - 1 <= min_row && min_row - NUM_SCROLL >= SURFACE)
+		if (robot.x_pos - 1 <= min_row && min_row >= NUM_SCROLL)
 		{
 			min_row -= NUM_SCROLL;
 			max_row -= NUM_SCROLL;
-            num_slides--;
+			num_slides--;
 			map_scrolled = true;
 		}
 		
@@ -253,9 +257,9 @@ __task void buyFuel(void)
 
 	while(!game_over)
 	{
-        os_mut_wait(&fuel_lock, 0xffff);
-		if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
-		{
+		os_sem_wait(&needs_refill, 0xffff);
+		//if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
+		//{
 			num_bars = NUM_LEDS - robot.fuel_status;
 			cost = 2*num_bars;
 			if (robot.num_points >= cost)
@@ -263,11 +267,8 @@ __task void buyFuel(void)
 				robot.fuel_status = NUM_LEDS;
 				robot.num_points -= cost;
 			}
-		}
-        
-        os_mut_release(&fuel_lock);
-		//os_tsk_pass();
-		//os_itv_wait();
+		//}
+		os_sem_send(&fuel_refilled);
 	}
 	os_tsk_delete_self();
 }
@@ -275,23 +276,24 @@ __task void buyFuel(void)
 __task void updateFuelStatus(void)
 {
 	uint32_t fuel_time_cur = 0;
-    uint32_t fuel_time_prev = 0;
+    //uint32_t fuel_time_prev = 0;
 	uint32_t fuel_time_next = 0;
-    uint32_t blocked_time = 0;
+    //uint32_t blocked_time = 0;
 	uint32_t fuel_consumption_rate = FUEL_TIME;
 	
-    os_mut_init(&fuel_lock);
+    //os_mut_init(&fuel_lock);
 	//os_itv_set(200);
 
 	while(!game_over)
 	{
-        fuel_time_prev = timer_read()/1E6;
+		os_sem_wait(&fuel_refilled, 0xffff);
+        //fuel_time_prev = timer_read()/1E6;
 
-        os_mut_wait(&fuel_lock, 0xffff);
+        //os_mut_wait(&fuel_lock, 0xffff);
 
-        fuel_time_cur = timer_read()/1E6;
-        blocked_time += (fuel_time_cur - fuel_time_prev);
-        fuel_time_cur -= blocked_time;
+        
+        //blocked_time += (fuel_time_cur - fuel_time_prev);
+        //fuel_time_cur -= blocked_time;
 		//printf("ENTERED FUEL UPDATE\n");
 		// Perhaps add mutex to control which task (updateFuel or buyFuel) gets to
 		// update robot.fuel_status
@@ -302,7 +304,7 @@ __task void updateFuelStatus(void)
 		//printf("fuel_time_cur: %d\n", fuel_time_cur);
 		if (fuel_time_cur - fuel_time_next >= fuel_consumption_rate)
 		{
-			printf("Entered 10s condition, robot_fuel_status: %d\n", robot.fuel_status);
+			//printf("Entered 10s condition, robot_fuel_status: %d\n", robot.fuel_status);
 			robot.fuel_status--;
 			fuel_time_next += fuel_consumption_rate;
 		}
@@ -313,7 +315,12 @@ __task void updateFuelStatus(void)
             robot.game_won = false;
 		}
 		setLED(robot.fuel_status);
-        os_mut_release(&fuel_lock);
+		if (robot.x_pos == fuel_x && robot.y_pos == fuel_y && robot.select_action)
+		{
+			os_sem_send(&needs_refill);
+		}
+        //os_mut_release(&fuel_lock);
+		os_sem_send(&fuel_refilled);
 		os_tsk_pass();
 		//os_itv_wait();
 	}
@@ -326,12 +333,11 @@ uint32_t* pollJoystick(void)
 {
 	// Value read from joystick register
 	volatile uint32_t joystick_val;
-	uint32_t joystick_button, 
 	uint32_t joystick_inputs[2];
 	
 	// Bits that indicate direction of joystick
 	uint32_t direction_mask = 15 << 23;
-	// Bit indicates if joystick button pressed
+                	// Bit indicates if joystick button pressed
 	uint32_t button_mask = 1 << 20;
 
 	// Read from Joystick Register
@@ -563,4 +569,4 @@ int main(void)
 	os_sys_init(mainTask);
 }
 
-// TODO: Semaphores, Points and flying display, figure out map dims (inversion and vertical scrolling), select menu(perhaps), toggle directional movement, improve end game display, gravity?
+// TODO: Semaphores, Points and flying display, select menu(perhaps), toggle directional movement, improve end game display, gravity?
