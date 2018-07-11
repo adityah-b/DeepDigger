@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <RTL.h>
+#include "uart.h"
+#include <stdint.h>
+#include "GLCD.h"
+#include "timer.h"
 
 #include "game_bitmaps.h"
 
