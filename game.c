@@ -7,7 +7,7 @@ __task void mainTask(void)
 	// Initialize Semaphores
 	os_sem_init(&display_refreshed, 0);
 	os_sem_init(&action_performed, 1);
-	os_sem_init(&fuel_refilled, 1);
+	os_sem_init(&fuel_refilled, 0);
 	os_sem_init(&needs_refill, 0);
 	
 	
@@ -36,7 +36,8 @@ __task void updateDisplay(void)
 	
 	// Print initial game map on LCD
 	printMap();
-
+	os_sem_send(&fuel_refilled);
+	
 	while(!game_over)
 	{
 		// Wait until something has changed on the screen
@@ -94,7 +95,7 @@ __task void moveRobot(void)
 
 		// Wait until display has been refreshed before accepting new inputs
 		os_sem_wait(&display_refreshed, 0xffff);
-
+		while(menu_requested);
 		joystick_inputs = pollJoystick();
 		robot.select_action = joystick_inputs[1];
 
@@ -259,25 +260,27 @@ __task void buyFuel(void)
 		cost = 2*num_bars;
 		
 		// Show appropriate Fuel Store menu
-		if (cost == 0)
+		/*if (cost == 0 && menu_requested)
 		{
 			showBuyFuelMenu(2);
 		}
-		else if (robot.num_points >= cost && menu_requested)
+		else */ 
+		if (robot.num_points >= cost && menu_requested)
 		{
 			robot.fuel_status = NUM_LEDS;
 			robot.num_points -= cost;
 			
 			showBuyFuelMenu(1);
 			setLED(robot.fuel_status);
+			os_dly_wait(1000);
 		}
 		else if (menu_requested)
 		{
 			showBuyFuelMenu(0);
+			os_dly_wait(1000);
 		}
 		
 		// Close overlayed menu automatically and redraw map
-		os_dly_wait(1000);
 		printMap();
 		menu_requested = false;
 		
@@ -292,18 +295,30 @@ __task void updateFuelStatus(void)
 	uint32_t fuel_time_cur = 0;
 	uint32_t fuel_time_next = 0;
 	uint32_t fuel_consumption_rate = FUEL_TIME;
-	
+	uint32_t f2=0, f1=0;
+	uint32_t f_delta=0;
 	while(!game_over)
 	{
+		f1 = timer_read()/1E6;
 		os_sem_wait(&fuel_refilled, 0xffff);
-
+		if (menu_requested && robot.x_pos == fuel_x && robot.y_pos == fuel_y)
+		{
+			os_sem_send(&needs_refill);
+		}
+		while(menu_requested);
+		f2 = timer_read()/1E6;
+		f_delta += f2 - f1;
+		
 		// Lose 1 bar of fuel every 10s (5s if robot is flying)
 		fuel_consumption_rate = robot.is_flying ? 0.5*FUEL_TIME : FUEL_TIME;
 		
 		// Decrement fuel tank by 1 per period
 		fuel_time_cur = timer_read()/1E6;
+		fuel_time_cur -= f_delta;
+		
 		if (fuel_time_cur - fuel_time_next >= fuel_consumption_rate)
 		{
+			//printf("f_delta: %d, f_curr: %d, f_next: %d, consumption_rate: %d\n", f_delta, fuel_time_cur, fuel_time_next, fuel_consumption_rate);
 			robot.fuel_status--;
 			fuel_time_next += fuel_consumption_rate;
 		}
